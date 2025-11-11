@@ -1,0 +1,9 @@
+services:
+  inventory-service:
+    build: .
+    ports:
+      - "3000:3000"
+    command: node main.js --host 0.0.0.0 --port 3000 --cache ./cache
+    volumes:
+      - ./inventory.json:/app/inventory.json
+      - ./cache:/app/cache
