@@ -1,0 +1,237 @@
+{
+  "info": {
+    "name": "Inventory Management API",
+    "description": "API для управління інвентарем пристроїв",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "HTML Forms",
+      "item": [
+        {
+          "name": "Get Register Form",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/RegisterForm.html",
+              "host": ["{{base_url}}"],
+              "path": ["RegisterForm.html"]
+            }
+          }
+        },
+        {
+          "name": "Get Search Form",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/SearchForm.html",
+              "host": ["{{base_url}}"],
+              "path": ["SearchForm.html"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Device Registration",
+      "item": [
+        {
+          "name": "Register New Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "inventory_name",
+                  "value": "iPhone 15",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Новий смартфон Apple",
+                  "type": "text"
+                },
+                {
+                  "key": "photo",
+                  "type": "file",
+                  "src": "/path/to/photo.jpg"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/register",
+              "host": ["{{base_url}}"],
+              "path": ["register"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory Management",
+      "item": [
+        {
+          "name": "Get All Inventory",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/inventory",
+              "host": ["{{base_url}}"],
+              "path": ["inventory"]
+            }
+          }
+        },
+        {
+          "name": "Get Device by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/inventory/1",
+              "host": ["{{base_url}}"],
+              "path": ["inventory", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update Device",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventory_name\": \"Оновлена назва\",\n  \"description\": \"Оновлений опис\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/inventory/1",
+              "host": ["{{base_url}}"],
+              "path": ["inventory", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete Device",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/inventory/1",
+              "host": ["{{base_url}}"],
+              "path": ["inventory", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Photo Management",
+      "item": [
+        {
+          "name": "Get Device Photo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/inventory/1/photo",
+              "host": ["{{base_url}}"],
+              "path": ["inventory", "1", "photo"]
+            }
+          }
+        },
+        {
+          "name": "Update Device Photo",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "photo",
+                  "type": "file",
+                  "src": "/path/to/new-photo.jpg"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/inventory/1/photo",
+              "host": ["{{base_url}}"],
+              "path": ["inventory", "1", "photo"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "item": [
+        {
+          "name": "Search Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"has_photo\": \"true\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/search",
+              "host": ["{{base_url}}"],
+              "path": ["search"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": ["// Pre-request script (optional)"]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Tests\npm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});"
+        ]
+      }
+    }
+  ]
+}
