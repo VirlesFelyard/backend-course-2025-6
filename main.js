@@ -3,6 +3,8 @@ const express = require("express");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs").promises;
+const swaggerJsdoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
 
 const program = new Command();
 const app = express();
@@ -16,6 +18,28 @@ program
 const options = program.opts();
 
 const DATA_FILE = path.join(__dirname, "inventory.json");
+
+const swaggerOptions = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Inventory Service API",
+      version: "1.0.0",
+      description: "A simple inventory management system API",
+    },
+    servers: [
+      {
+        url: `http://${options.host}:${options.port}`,
+        description: "Development server",
+      },
+    ],
+  },
+  apis: ["./*.js"],
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 async function readInventory() {
   try {
@@ -48,17 +72,11 @@ async function createDirectories() {
   } catch {
     await fs.mkdir(options.cache, { recursive: true });
   }
-
-  try {
-    await fs.access("photos");
-  } catch {
-    await fs.mkdir("photos", { recursive: true });
-  }
 }
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "photos/");
+    cb(null, options.cache);
   },
   filename: (req, file, cb) => {
     const uniqueName =
@@ -97,14 +115,84 @@ app.use((error, req, res, next) => {
   next(error);
 });
 
+/**
+ * @swagger
+ * /RegisterForm.html:
+ *   get:
+ *     summary: Get registration form HTML page
+ *     description: Returns the HTML form for registering new inventory items
+ *     responses:
+ *       200:
+ *         description: HTML form page
+ *         content:
+ *           text/html:
+ *             schema:
+ *               type: string
+ */
 app.get("/RegisterForm.html", (req, res) => {
   res.sendFile(path.join(__dirname, "RegisterForm.html"));
 });
 
+/**
+ * @swagger
+ * /SearchForm.html:
+ *   get:
+ *     summary: Get search form HTML page
+ *     description: Returns the HTML form for searching inventory items
+ *     responses:
+ *       200:
+ *         description: HTML form page
+ *         content:
+ *           text/html:
+ *             schema:
+ *               type: string
+ */
 app.get("/SearchForm.html", (req, res) => {
   res.sendFile(path.join(__dirname, "SearchForm.html"));
 });
 
+/**
+ * @swagger
+ * /register:
+ *   post:
+ *     summary: Register a new inventory item
+ *     description: Register a new device with name, description, and optional photo
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - inventory_name
+ *             properties:
+ *               inventory_name:
+ *                 type: string
+ *                 description: Name of the inventory item (required)
+ *               description:
+ *                 type: string
+ *                 description: Description of the inventory item
+ *               photo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Photo image file
+ *     responses:
+ *       201:
+ *         description: Device registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 inventory:
+ *                   type: object
+ *       400:
+ *         description: Bad Request - Name is required
+ *       500:
+ *         description: Internal Server Error - Data save error
+ */
 app.post("/register", upload.single("photo"), async (req, res) => {
   const { inventory_name, description } = req.body;
 
@@ -118,7 +206,6 @@ app.post("/register", upload.single("photo"), async (req, res) => {
     inventory_name,
     description: description || "",
     photo_filename: req.file ? req.file.filename : null,
-    created_at: new Date().toISOString(),
   };
 
   inventory.push(newItem);
@@ -133,6 +220,33 @@ app.post("/register", upload.single("photo"), async (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /inventory:
+ *   get:
+ *     summary: Get all inventory items
+ *     description: Returns a list of all registered inventory items with photo URLs
+ *     responses:
+ *       200:
+ *         description: List of inventory items
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   inventory_name:
+ *                     type: string
+ *                   description:
+ *                     type: string
+ *                   photo_filename:
+ *                     type: string
+ *                   photo_url:
+ *                     type: string
+ */
 app.get("/inventory", async (req, res) => {
   const inventory = await readInventory();
 
@@ -144,6 +258,40 @@ app.get("/inventory", async (req, res) => {
   res.json(inventoryWithPhotoUrls);
 });
 
+/**
+ * @swagger
+ * /inventory/{id}:
+ *   get:
+ *     summary: Get specific inventory item by ID
+ *     description: Returns detailed information about a specific inventory item
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Inventory item ID
+ *     responses:
+ *       200:
+ *         description: Inventory item details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 inventory_name:
+ *                   type: string
+ *                 description:
+ *                   type: string
+ *                 photo_filename:
+ *                   type: string
+ *                 photo_url:
+ *                   type: string
+ *       404:
+ *         description: Device not found
+ */
 app.get("/inventory/:id", async (req, res) => {
   const { id } = req.params;
   const inventory = await readInventory();
@@ -158,6 +306,47 @@ app.get("/inventory/:id", async (req, res) => {
   res.json(item);
 });
 
+/**
+ * @swagger
+ * /inventory/{id}:
+ *   put:
+ *     summary: Update inventory item name or description
+ *     description: Update the name and/or description of an existing inventory item
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Inventory item ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               inventory_name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Device updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 inventory:
+ *                   type: object
+ *       404:
+ *         description: Device not found
+ *       500:
+ *         description: Internal Server Error - Data save error
+ */
 app.put("/inventory/:id", async (req, res) => {
   const { id } = req.params;
   const { inventory_name, description } = req.body;
@@ -186,6 +375,30 @@ app.put("/inventory/:id", async (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /inventory/{id}/photo:
+ *   get:
+ *     summary: Get inventory item photo
+ *     description: Returns the photo image for a specific inventory item
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Inventory item ID
+ *     responses:
+ *       200:
+ *         description: Photo image
+ *         content:
+ *           image/jpeg:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Photo not found
+ */
 app.get("/inventory/:id/photo", async (req, res) => {
   const { id } = req.params;
   const inventory = await readInventory();
@@ -195,7 +408,7 @@ app.get("/inventory/:id/photo", async (req, res) => {
     return res.status(404).json({ error: "Photo not found" });
   }
 
-  const photoPath = path.join(__dirname, "photos", item.photo_filename);
+  const photoPath = path.join(options.cache, item.photo_filename);
 
   try {
     await fs.access(photoPath);
@@ -206,6 +419,49 @@ app.get("/inventory/:id/photo", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /inventory/{id}/photo:
+ *   put:
+ *     summary: Update inventory item photo
+ *     description: Update the photo for a specific inventory item
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Inventory item ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               photo:
+ *                 type: string
+ *                 format: binary
+ *                 description: New photo image file
+ *     responses:
+ *       200:
+ *         description: Photo updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 inventory:
+ *                   type: object
+ *       400:
+ *         description: No photo provided
+ *       404:
+ *         description: Device not found
+ *       500:
+ *         description: Internal Server Error - Data save error
+ */
 app.put("/inventory/:id/photo", upload.single("photo"), async (req, res) => {
   const { id } = req.params;
 
@@ -222,7 +478,7 @@ app.put("/inventory/:id/photo", upload.single("photo"), async (req, res) => {
 
   const oldPhoto = inventory[itemIndex].photo_filename;
   if (oldPhoto) {
-    const oldPhotoPath = path.join(__dirname, "photos", oldPhoto);
+    const oldPhotoPath = path.join(options.cache, oldPhoto);
     try {
       await fs.access(oldPhotoPath);
       await fs.unlink(oldPhotoPath);
@@ -241,6 +497,36 @@ app.put("/inventory/:id/photo", upload.single("photo"), async (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /inventory/{id}:
+ *   delete:
+ *     summary: Delete inventory item
+ *     description: Delete a specific inventory item and its associated photo
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Inventory item ID
+ *     responses:
+ *       200:
+ *         description: Device deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 inventory:
+ *                   type: object
+ *       404:
+ *         description: Device not found
+ *       500:
+ *         description: Internal Server Error - Data save error
+ */
 app.delete("/inventory/:id", async (req, res) => {
   const { id } = req.params;
   const inventory = await readInventory();
@@ -253,11 +539,7 @@ app.delete("/inventory/:id", async (req, res) => {
   const deletedItem = inventory[itemIndex];
 
   if (deletedItem.photo_filename) {
-    const photoPath = path.join(
-      __dirname,
-      "photos",
-      deletedItem.photo_filename,
-    );
+    const photoPath = path.join(options.cache, deletedItem.photo_filename);
     try {
       await fs.access(photoPath);
       await fs.unlink(photoPath);
@@ -276,6 +558,39 @@ app.delete("/inventory/:id", async (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /search:
+ *   post:
+ *     summary: Search for inventory item by ID
+ *     description: Search for an inventory item by ID with optional photo URL in description
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id
+ *             properties:
+ *               id:
+ *                 type: integer
+ *                 description: Inventory item ID to search for
+ *               has_photo:
+ *                 type: string
+ *                 description: If "true", adds photo URL to description
+ *     responses:
+ *       200:
+ *         description: Found inventory item
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         description: ID is required
+ *       404:
+ *         description: Device not found
+ */
 app.post("/search", async (req, res) => {
   const { id, has_photo } = req.body;
 
@@ -312,6 +627,9 @@ async function startServer() {
 
   app.listen(options.port, options.host, () => {
     console.log(`Server running at http://${options.host}:${options.port}`);
+    console.log(
+      `Swagger documentation available at http://${options.host}:${options.port}/docs`,
+    );
   });
 }
 
